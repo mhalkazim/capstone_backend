@@ -12,3 +12,7 @@ This is backend implementation of the AstroLabs capstone project by group 5
    ```sh
    npm install
    ```
+3. Run the application
+   ```sh
+   npm run start-dev
+   ```
