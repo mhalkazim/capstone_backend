@@ -16,8 +16,8 @@ server.get("/", function (req, res) {
   res.send("<h1>You have successfully landed on the Dubai Marketplace!</h1>");
 });
 
-// using my the routes we created from routes folder
-server.use("/products", ProductRoutes);
+// using the routes we created from routes folder
+server.use("/product", ProductRoutes);
 server.use("/user", UserRoutes);
 
 // this is for testing that post requests are made successfully.
