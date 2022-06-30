@@ -4,7 +4,7 @@ const router = express.Router();
 // all routes need to go here GET/POST
 
 router.get("/", function (req, res) {
-  res.send("You have landed on Products page");
+  res.send("You have landed on Products route");
 });
 
 // end of all routes
