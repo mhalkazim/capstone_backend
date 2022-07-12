@@ -176,7 +176,7 @@ router.post(
 // Update Route
 router.post(
   '/update',
-  (req,res) => {
+  async (req,res) => {
     // Get the updated data
 
     const currentData = {
@@ -191,9 +191,55 @@ router.post(
       'phonenumber' : req.body.phonenumber,
       'address' : req.body.address
     }
-    
- 
 
+    if(newData.password){
+      const salt = await bcryptjs.genSalt();
+      const hashedPassword = await bcryptjs.hash(req.body.password, salt);
+
+      // 3. Replace the original password with hash
+      newData.password = hashedPassword;
+    }
+    
+    UserModel
+    .findOneAndUpdate({email: currentData.email}, newData, {new:true})
+    .then(
+      (dbDocument) => {
+        if(dbDocument){
+          res.json(
+            {
+              "message":{
+                email: dbDocument.email,
+                firstname: dbDocument.firstname,
+                lastname: dbDocument.lastname,
+                address: dbDocument.address,
+                phonenumber: dbDocument.phonenumber,
+                password: dbDocument.password
+              }
+            }
+          )
+        }
+        else{
+          res.status(401).json(
+            {
+                "message": "Wrong email or password"
+            }
+        );
+        }
+      }
+    )
+    .catch(
+      (err)=>{
+        console.log(err);
+        
+        res.status(503).json(
+          {
+            "status" : "not ok",
+            "message": "Please try again later"
+          }
+        )
+      }
+    )
+ 
   }
 
 );
