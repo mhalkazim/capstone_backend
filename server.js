@@ -7,6 +7,9 @@ const express = require("express");
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 
+// Import express-form-data to process HTTP Post requests
+const expressFormData = require('express-form-data');
+
 const cors = require('cors');
 require('dotenv').config();
 const db_url = process.env.DB_URL;
@@ -70,12 +73,22 @@ const passportJwt = (passport) => {
 passportJwt(passport)
 // ---------End of Passport JS configuration ---------
 
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config(
+    {
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET
+    }
+)
 
 // configuration for body-parser to handle post requests
 // no need to install a seperate package - its built in
-const bodyParserConfig = {extended: false};
-server.use( bodyParser.urlencoded(bodyParserConfig) )
-server.use( bodyParser.json() );
+// const bodyParserConfig = {extended: false};
+// server.use( bodyParser.urlencoded(bodyParserConfig) )
+// server.use( bodyParser.json() );
+server.use(expressFormData.parse());
 server.use( cors() )
 
 // Connect to MongoDB via mongoose
@@ -135,10 +148,10 @@ server.post("/name", function (req, res) {
   );
 });
 
-// server is listening to requests on port 3000
+// server is listening to requests on port 3011
 server.listen(
-  process.env.PORT || 3000, 
+  process.env.PORT || 3011, 
   function () {
-    console.log("Server is running and listening on port 3000");
+    console.log("Server is running and listening on port 3011");
   }
 );

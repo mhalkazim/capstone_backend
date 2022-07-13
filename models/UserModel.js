@@ -1,39 +1,43 @@
 const mongoose = require('mongoose');
 
+
+// Creating the schema
 const UserSchema = new mongoose.Schema({
-    "firstname": {
+    firstname: {
         type: String,
         required: true
     },
-    "lastname": {
+    lastname: {
         type: String,
         required: true
     },
-    "email": {
+    email: {
         type: String,
         required: true
     },
-    "password": {
+    password: {
         type: String,
         required: true
     },
-    "date_created": {
+    date_created: {
         type: Date,
         required: true,
         default: Date.now
     },
-    "phonenumber": {
+    phonenumber: {
         type: String,
         required: true
     },
-    "address": {
+    address:{
         type: String,
         required: true
     },
-    "photoURL": {
+    avatar: {
         type: String,
         required: false
     }
+    
+    
 });
 
 // Creating the model

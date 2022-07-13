@@ -4,6 +4,7 @@ const router = express.Router();
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const jwtSecret = process.env.JWT_SECRET;
+const cloudinary = require('cloudinary').v2;
 
 const UserModel = require('../models/UserModel.js');
 
@@ -32,42 +33,118 @@ router.post(
     } 
 
     // 1a.  If email is unique
-    const dbResult = await UserModel.findOne({email: req.body.email});
-    if (dbResult === null) {
-      // 2. Generate a hash
-      const salt = await bcryptjs.genSalt();
-      const hashedPassword = await bcryptjs.hash(req.body.password, salt);
+    UserModel.findOne({email: req.body.email})
+    .then(
+      async function (dbDocument) {
 
-      // 3. Replace the original password with hash
-      newDocument.password = hashedPassword;
+        // If avatar file is included...
+        if( Object.values(req.files).length > 0 ) {
+
+            const files = Object.values(req.files);
+            
+            
+            // upload to Cloudinary
+            await cloudinary.uploader.upload(
+                files[0].path,
+                (cloudinaryErr, cloudinaryResult) => {
+                    if(cloudinaryErr) {
+                        console.log(cloudinaryErr);
+                        res.json(
+                            {
+                                status: "not ok",
+                                message: "Error occured during image upload"
+                            }
+                        )
+                    } else {
+                        // Include the image url in formData
+                        newDocument.avatar = cloudinaryResult.url;
+                        console.log('newDocument.avatar', newDocument.avatar)
+                    }
+                }
+            )
+        };
     
-      // 4. Write credentials in collection
-      UserModel
-      .create(newDocument)
-      .then(                                      // If the 'create' request is successful, then handle it
-          function(dbDocument) {
-              res.json( dbDocument );
-          }
-      )
-      .catch(
-          function(dbError) {                     // If the 'create' request is unsuccessful, catch the error
-              console.log(dbError);
-              res.send("An error occured");
-          }
-      );
-    }
-    // 1b.  If email is NOT unique
-    else {
-      // 2. Reject the request
-      res.send(
+        if (!dbDocument) {
+          // 2. Generate a hash
+          bcryptjs.genSalt(
+
+            function(bcryptError, theSalt) {
+            // Use the (a) and (b) salt user's password 
+            // and produce hashed password
+              bcryptjs.hash( 
+                newDocument.password,                  // first ingredient
+                theSalt,                            // second ingredient
+                function(hashError, theHash) {      // the hash
+                  // Reassign the original password formData
+                  newDocument['password'] = theHash;
+                  console.log(newDocument.avatar)
+                  // Create the user's account with hashed password
+                  UserModel
+                  .create(newDocument)
+                  // If successful...
+                  .then(
+                    function(dbDocument) {
+                      // Express sends this...
+                      res.json({
+                        status: "ok",
+                        document: dbDocument
+                      });
+                    }
+                  )
+                  // If problem occurs, the catch the problem...
+                  .catch(
+                    function(dbError) {
+                      // For the developer
+                      console.log('An error occured during .create()', dbError);
+
+                      // For the client (frontend app)
+                      res.status(503).json(
+                        {
+                          "status": "not ok",
+                          "message": "Something went wrong with db"
+                        }
+                      )
+                    }
+                  )
+                }
+              )
+            }
+          )
+
+        }
+        // If email is NOT unique....
+        else { 
+          // reject the request
+          res.status(403).json(
+            {
+              "status": "not ok",
+              "message": "Account already exists"
+            }
+          )
+        }
+      }
+    )
+    .catch(
+      function(dbError) {
+
+        // For the developer
+        console.log(
+          'An error occured', dbError
+        );
+
+        // For the client (frontend app)
+        res.status(503).json(
           {
-              "message": "not ok",
-              "description": "An account already exists"
+            "status": "not ok",
+            "message": "Something went wrong with db"
           }
-      );
-   }
+       )
+
+      }
+    )
   }
-)
+);
+
 
 // Login Route
 router.post(
@@ -120,8 +197,11 @@ router.post(
                           {
                             "message": {
                               email: dbDocument.email,
-                              firstName: dbDocument.firstname,
-                              lastName: dbDocument.lastname,
+                              firstname: dbDocument.firstname,
+                              lastname: dbDocument.lastname,
+                              phonenumber: dbDocument.phonenumber,
+                              address: dbDocument.address,
+                              avatar: dbDocument.avatar,
                               jsonwebtoken: jsonwebtoken
                             }
                           }
@@ -136,7 +216,10 @@ router.post(
                     {
                       "message": "Wrong email or password"
                     }
+                    
                   );
+                  console.log(formData.email)
+                  console.log(formData.password)
                 }
               }
             )
@@ -154,6 +237,8 @@ router.post(
               "message": "Wrong email or password"
             }
           );
+          console.log(formData.email)
+          console.log(formData.password)
         }
       }
     )
@@ -175,30 +260,21 @@ router.post(
 
 // Update Route
 router.post(
-  '/update',
+  '/updatedata',
   async (req,res) => {
     // Get the updated data
 
     const currentData = {
-      'email': req.body.currentEmail,
-      'password': req.body.currentPassword
+      'email': req.body.email,
     }
     const newData = {
       'firstname': req.body.firstname,
       'lastname': req.body.lastname,
-      'email': req.body.email,
-      'password': req.body.password,
       'phonenumber' : req.body.phonenumber,
       'address' : req.body.address
     }
 
-    if(newData.password){
-      const salt = await bcryptjs.genSalt();
-      const hashedPassword = await bcryptjs.hash(req.body.password, salt);
-
-      // 3. Replace the original password with hash
-      newData.password = hashedPassword;
-    }
+  
     
     UserModel
     .findOneAndUpdate({email: currentData.email}, newData, {new:true})
@@ -213,7 +289,6 @@ router.post(
                 lastname: dbDocument.lastname,
                 address: dbDocument.address,
                 phonenumber: dbDocument.phonenumber,
-                password: dbDocument.password
               }
             }
           )
@@ -240,6 +315,78 @@ router.post(
       }
     )
  
+  }
+
+);
+
+router.post(
+  '/changepassword',
+  (req,res) => {
+    // Get the updated data
+
+    const currentData = {
+      'email': req.body.email,
+      'oldpassword': req.body.oldpassword,
+    }
+    const newData = {
+      'password': req.body.newpassword
+    }
+
+  
+    UserModel
+    .findOne({email: currentData.email})
+    .then(
+      (dbDocument) => {
+        if(dbDocument){
+          bcryptjs.compare(
+            currentData.oldpassword,
+            dbDocument.password
+            
+          )
+          .then(
+            async (isMatch) =>{
+              if(isMatch){
+                const salt = await bcryptjs.genSalt();
+                const hashedPassword = await bcryptjs.hash(req.body.newpassword, salt);
+                newData.password = hashedPassword;
+
+                dbDocument.password = newData.password
+                dbDocument.save()
+                res.json({
+                  "status": "ok",
+                  "message": {
+                    "email": dbDocument.email,
+                    "password": dbDocument.password
+                  }
+                })
+
+              }
+              else{
+                res.status(503).json(
+                  {
+                    "status": "not ok",
+                    "message": "Password is not matching"
+                  }
+              );
+              }
+            }
+          )
+        }
+      }
+    )
+    .catch(
+      (err) => {
+      res.status(503).json(
+        {
+          "stauts": "not ok",
+          "message": "Please try again later"
+        }
+    )
+      }
+    )
+    
+    
+
   }
 
 );
