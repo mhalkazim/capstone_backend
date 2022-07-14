@@ -90,6 +90,14 @@ cloudinary.config(
 // server.use( bodyParser.json() );
 server.use(expressFormData.parse());
 server.use( cors() )
+server.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept"
+  );
+  next();
+});
 
 // Connect to MongoDB via mongoose
 db_config = {
